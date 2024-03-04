@@ -1,5 +1,9 @@
 package in.clear.Elasticsearch.model;
 
+
+
+
+
 import lombok.Data;
 
 @Data

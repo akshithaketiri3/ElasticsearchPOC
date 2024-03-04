@@ -3,32 +3,40 @@ package in.clear.Elasticsearch.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 
+
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import in.clear.Elasticsearch.model.EqualFilter;
+import in.clear.Elasticsearch.model.RangeFilter;
+import in.clear.Elasticsearch.model.SearchDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.ssl.SSLContextBuilder;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.core.CountRequest;
+import org.elasticsearch.client.core.CountResponse;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.RangeQueryBuilder;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 import org.springframework.stereotype.Service;
 
 
 import javax.net.ssl.SSLContext;
-import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,16 +46,6 @@ import java.util.Map;
 public class ElasticsearchService {
     public ElasticsearchService() throws Exception {
     }
-
-
-//    private RestTemplate restTemplate = new RestTemplate();
-//
-//    private String url = "https://localhost:9200";
-//    private String username = "elastic";
-//    private String password = "*4kiD_gbmFS*yTP4ZMZi";
-//
-//    private ObjectMapper objectMapper = new ObjectMapper();
-
 
     public BasicCredentialsProvider getCredentialsProvider(String username, String password){
         BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -60,12 +58,12 @@ public class ElasticsearchService {
     public static RestHighLevelClient createHighLevelClient(BasicCredentialsProvider credentialsProvider) throws Exception {
 //        SSLContext sslContext = SSLContextBuilder
 //                .create()
-//                .loadTrustMaterial(new File("/Users/ketiriakshitha/Downloads/elasticsearch-8.12.2/config/certs/http_ca.crt"))
+//                .loadTrustMaterial(new File("/Users/ketiriakshitha/Downloads/elasticsearch-8.12.2/config/certs/http_ca.crt"), "Cleartax@321".toCharArray())
 //                .build();
 
         SSLContext sslContext = SSLContext.getDefault();
 
-        return new RestHighLevelClient(RestClient.builder(new org.apache.http.HttpHost("localhost", 9200, "https"))
+        return new RestHighLevelClient(RestClient.builder(new org.apache.http.HttpHost("localhost", 9200, "http"))
                 .setHttpClientConfigCallback(httpClientBuilder ->
                         httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
                                 .setSSLContext(sslContext))
@@ -101,40 +99,52 @@ public class ElasticsearchService {
         return response;
     }
 
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setBasicAuth(username, password);
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//
-//                Map<String, Object>properties = new HashMap<>();
-//        properties.put("properties", fields);
-//        Map<String, Object>mappings = new HashMap<>();
-//        mappings.put("mappings", properties);
-//        String map = new ObjectMapper().writeValueAsString(mappings);
-//        BytesArray source = new BytesArray(map);
-//        CreateIndexRequest request = new CreateIndexRequest(indexName);
-//        request.source(source, XContentType.JSON);
-//
-//        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-//        params.add("indexName", indexName);
-//
-//        HttpEntity<String> requestEntity = new HttpEntity<>(objectMapper.writeValueAsString(request), headers);
-//
-//        String uriWithParams = url + "?" + "indexName" + "=" + indexName;
-//
-//
-//        RestTemplate restTemplate = new RestTemplate();
-//
-//
-//        ResponseEntity<String> response = restTemplate.exchange(
-//                uriWithParams,
-//                HttpMethod.PUT,
-//                requestEntity,
-//                String.class
-//        );
-//
-//
-//        return response.getBody();
-//    }
+    public SearchResponse search(String name, SearchDTO searchDTO) throws IOException {
+
+
+        SearchRequest searchRequest = new SearchRequest(name);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+
+        for(EqualFilter ef :  searchDTO.getEqualFilters()){
+            boolQueryBuilder.must(QueryBuilders.wildcardQuery(ef.getKey(), "*" + ef.getEqualsIn() + "*"));
+        }
+
+
+        for(RangeFilter rf : searchDTO.getRangeFilters()){
+            RangeQueryBuilder rangeQuery = QueryBuilders.rangeQuery(rf.getKey())
+                    .gt(rf.getMin())
+                    .lt(rf.getMax());
+            boolQueryBuilder.filter(rangeQuery);
+        }
+
+
+        searchSourceBuilder.query(boolQueryBuilder);
+        searchSourceBuilder.size(searchDTO.getSize());
+        searchSourceBuilder.from((searchDTO.getPage() - 1) * searchDTO.getSize());
+        searchRequest.source(searchSourceBuilder);
+
+
+        SearchResponse searchResponse = restClient.search(searchRequest, RequestOptions.DEFAULT);
+        return searchResponse;
+    }
+
+    public String count(String name) throws IOException {
+
+        CountRequest countRequest = new CountRequest(name);
+            CountResponse countResponse = restClient.count(countRequest, RequestOptions.DEFAULT);
+            long totalCount = countResponse.getCount();
+           return "Total number of documents in index '" + name + "': " + totalCount;
+    }
+
+    public SearchResponse globalSearch(String indexName, String text, String fieldName) throws IOException {
+        SearchRequest searchRequest = new SearchRequest(indexName);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.regexpQuery(fieldName, ".*" + text + ".*"));
+        searchRequest.source(searchSourceBuilder);
+        SearchResponse searchResponse = restClient.search(searchRequest, RequestOptions.DEFAULT);
+        return searchResponse;
+    }
 
 
 }

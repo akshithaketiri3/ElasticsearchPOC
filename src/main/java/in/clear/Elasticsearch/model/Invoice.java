@@ -1,15 +1,9 @@
 package in.clear.Elasticsearch.model;
 
-
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-
 
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Invoice {
 
     private String invoiceId;

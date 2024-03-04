@@ -1,12 +1,7 @@
 package in.clear.Elasticsearch.service;
 
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
 
-
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.ElasticsearchTransport;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import in.clear.Elasticsearch.model.EqualFilter;
@@ -71,9 +66,6 @@ public class ElasticsearchService {
     }
 
     RestHighLevelClient restClient = createHighLevelClient(credentialsProvider);
-
-    ElasticsearchTransport transport = new RestClientTransport(restClient.getLowLevelClient(), new JacksonJsonpMapper());
-    ElasticsearchClient client = new ElasticsearchClient(transport);
 
 
     public String createIndex(String indexName, Map<String, Object>fields) throws JsonProcessingException ,IOException, ElasticsearchException {

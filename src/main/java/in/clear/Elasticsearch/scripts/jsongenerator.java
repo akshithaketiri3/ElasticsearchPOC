@@ -23,7 +23,7 @@ public class jsongenerator {
             ObjectMapper objectMapper = new ObjectMapper();
             Random random = new Random();
 
-            for (int i = 1120001; i <= 1120000 + numEntries; i++) {
+            for (int i = 1200000; i <= 1300000 + numEntries; i++) {
                 Map<String, Object> document = createRandomDocument(i, random);
                 Map<String, Object> indexAction = createIndexAction(indexName, i);
 

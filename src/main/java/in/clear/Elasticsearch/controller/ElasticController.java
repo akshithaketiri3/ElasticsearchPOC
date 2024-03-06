@@ -4,15 +4,16 @@ package in.clear.Elasticsearch.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import in.clear.Elasticsearch.model.SearchDTO;
 import in.clear.Elasticsearch.service.ElasticsearchService;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateResponse;
-import org.elasticsearch.index.get.GetResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 
@@ -51,10 +52,12 @@ public class ElasticController {
         return service.createDocument(indexName, jsonString);
    }
 
+
    @DeleteMapping("/deleteDocument")
     public DeleteResponse deleteDocument(@RequestParam("indexName") String indexName, @RequestParam("id") String id) throws IOException {
         return service.deleteDocument(indexName, id);
    }
+
 
    @PutMapping("/updateDocument")
     public UpdateResponse updateDocument(@RequestParam("indexName") String indexName, @RequestParam("id") String id, @RequestBody Map<String, Object>fields) throws IOException {
@@ -62,6 +65,28 @@ public class ElasticController {
        String jsonString = objectMapper.writeValueAsString(fields);
         return service.updateDocument(indexName, id, jsonString);
    }
+
+   @PutMapping("/updateMultipleDocuments")
+    public String  updateMultipleDocuments(@RequestParam("indexName") String indexName, @RequestBody List<Map<String, Object>> bulkRequestBody) throws IOException {
+        return service.updateMultipleDocuments(indexName, bulkRequestBody);
+   }
+
+    @PostMapping("/bulkIndexDocuments")
+    public String bulkIndexDocuments(
+            @RequestParam("indexName") String indexName,
+            @RequestBody List<Map<String, String>> documents) {
+
+       return service.bulkIndexDocuments(indexName, documents);
+    }
+
+
+    @DeleteMapping("/bulkDeleteDocuments")
+    public String bulkDeleteDocuments(
+            @RequestParam("indexName") String indexName,
+            @RequestBody List<String> documentIds) {
+
+       return service.bulkDeleteDocuments(indexName, documentIds);
+    }
 
 
 

@@ -15,6 +15,8 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -43,6 +45,7 @@ import org.springframework.stereotype.Service;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -176,7 +179,59 @@ public class ElasticsearchService {
     }
 
 
+    public String updateMultipleDocuments(String indexName, List<Map<String, Object>> bulkRequestBody) throws IOException {
+        try {
+            for (Map<String, Object> updateAction : bulkRequestBody) {
+                Map<String, Object> updateInfo = (Map<String, Object>) updateAction.get("update");
+                Map<String, Object> docInfo = (Map<String, Object>) updateAction.get("doc");
 
+                String documentId = (String) updateInfo.get("_id");
+                UpdateRequest updateRequest = new UpdateRequest(indexName, documentId)
+                        .doc(docInfo, XContentType.JSON);
 
+                UpdateResponse updateResponse = restClient.update(updateRequest, RequestOptions.DEFAULT);
+                System.out.println("Update response for document " + documentId + ": " + updateResponse);
+            }
+            return "SUCCESS";
+        }catch (Exception e){
+            log.error(e.getMessage());
+            return "FAILURE";
+        }
 
+    }
+
+    public String bulkIndexDocuments(String indexName, List<Map<String, String>> documents){
+        BulkRequest bulkRequest = new BulkRequest();
+
+        for (Map<String, String> document : documents) {
+            IndexRequest indexRequest = new IndexRequest(indexName).source(document).id( document.get("_id"));
+            bulkRequest.add(indexRequest);
+        }
+        try {
+            BulkResponse bulkResponse = restClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+            return "Success";
+        } catch (IOException e) {
+            log.error(e.getMessage());
+            return "Failure";
+        }
+
+    }
+
+    public String bulkDeleteDocuments(String indexName, List<String> documentIds) {
+        BulkRequest bulkRequest = new BulkRequest();
+        for (String documentId : documentIds) {
+            DeleteRequest deleteRequest = new DeleteRequest(indexName, documentId);
+            bulkRequest.add(deleteRequest);
+        }
+        try {
+            BulkResponse bulkResponse = restClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+            if (bulkResponse.hasFailures()) {
+                return "Bulk delete request failed";
+            } else {
+                return "Bulk delete request successful";
+            }
+        } catch (IOException e) {
+            return "Error processing bulk delete request";
+        }
+    }
 }

@@ -2,22 +2,31 @@ package in.clear.Elasticsearch.service;
 
 
 
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import in.clear.Elasticsearch.model.EqualFilter;
 import in.clear.Elasticsearch.model.RangeFilter;
 import in.clear.Elasticsearch.model.SearchDTO;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.RestHighLevelClientBuilder;
 import org.elasticsearch.client.core.CountRequest;
 import org.elasticsearch.client.core.CountResponse;
 import org.elasticsearch.client.indices.CreateIndexRequest;
@@ -48,6 +57,7 @@ public class ElasticsearchService {
         return credentialsProvider;
     }
 
+
     BasicCredentialsProvider credentialsProvider = getCredentialsProvider("elastic", "jdspUBYJe=3kBEg+UuKa");
 
     public static RestHighLevelClient createHighLevelClient(BasicCredentialsProvider credentialsProvider) throws Exception {
@@ -58,11 +68,14 @@ public class ElasticsearchService {
 
         SSLContext sslContext = SSLContext.getDefault();
 
-        return new RestHighLevelClient(RestClient.builder(new org.apache.http.HttpHost("localhost", 9200, "http"))
-                .setHttpClientConfigCallback(httpClientBuilder ->
-                        httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
-                                .setSSLContext(sslContext))
-        );
+        return new RestHighLevelClientBuilder(
+                RestClient.builder(new HttpHost("localhost", 9200, "http"))
+                        .setHttpClientConfigCallback(httpClientBuilder ->
+                                httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
+                                        .setSSLContext(sslContext)).build()
+        )
+                .setApiCompatibilityMode(true)
+                .build();
     }
 
     RestHighLevelClient restClient = createHighLevelClient(credentialsProvider);
@@ -137,6 +150,33 @@ public class ElasticsearchService {
         SearchResponse searchResponse = restClient.search(searchRequest, RequestOptions.DEFAULT);
         return searchResponse;
     }
+
+    public IndexResponse createDocument(String index, String jsonString) throws IOException {
+        IndexRequest request = new IndexRequest(index)
+                .source(jsonString, XContentType.JSON);
+
+        IndexResponse indexResponse = restClient.index(request, RequestOptions.DEFAULT);
+        return indexResponse;
+    }
+
+    public DeleteResponse deleteDocument(String indexName, String documentId) throws IOException {
+        DeleteRequest deleteRequest = new DeleteRequest(indexName).id(documentId);
+        DeleteResponse deleteResponse = restClient.delete(deleteRequest, RequestOptions.DEFAULT);
+        return deleteResponse;
+    }
+
+    public UpdateResponse updateDocument(String indexName, String documentId, String updatedJson) throws IOException {
+        UpdateRequest updateRequest = new UpdateRequest(indexName, documentId)
+                .doc(updatedJson, XContentType.JSON)
+                .docAsUpsert(true);
+
+
+        UpdateResponse updateResponse = restClient.update(updateRequest, RequestOptions.DEFAULT);
+          return updateResponse;
+    }
+
+
+
 
 
 }
